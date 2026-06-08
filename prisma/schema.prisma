@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  jobs      Job[]
+}
+
+model Job {
+  id          String    @id @default(uuid())
+  type        String
+  status      String    @default("waiting")
+  input       Json
+  output      Json?
+  retryCount  Int       @default(0)
+  maxRetries  Int       @default(3)
+  error       String?
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+  workerId    String?
+  worker      Worker?   @relation(fields: [workerId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  logs        JobLog[]
+  deadLetter  DeadLetterQueue?
+}
+
+model Worker {
+  id             String    @id @default(uuid())
+  status         String    @default("idle")
+  lastSeen       DateTime  @default(now())
+  startedAt      DateTime  @default(now())
+  crashedAt      DateTime?
+  totalProcessed Int       @default(0)
+  totalFailed    Int       @default(0)
+  jobs           Job[]
+}
+
+model JobLog {
+  id        String   @id @default(uuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id])
+  event     String
+  message   String?
+  workerId  String?
+  createdAt DateTime @default(now())
+}
+
+model DeadLetterQueue {
+  id          String    @id @default(uuid())
+  jobId       String    @unique
+  job         Job       @relation(fields: [jobId], references: [id])
+  reason      String
+  failedAt    DateTime  @default(now())
+  manualRetry Boolean   @default(false)
+  retriedAt   DateTime?
+  retriedBy   String?
+}
